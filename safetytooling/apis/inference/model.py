@@ -24,7 +24,8 @@ class InferenceAPIModel(Protocol):
     def create_prompt_history_file(prompt: Prompt, model: str, prompt_history_dir: Path | None):
         if prompt_history_dir is None:
             return None
-        filename = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}.txt"
+        # colon-free timestamp: the MooseFS mount (post 2026-07-09 remount) rejects ':' in filenames
+        filename = f"{datetime.now().strftime('%Y-%m-%d %H-%M-%S.%f')[:-3]}.txt"
         prompt_file = prompt_history_dir / model / filename
         prompt_file.parent.mkdir(parents=True, exist_ok=True)
         with open(prompt_file, "w") as f:

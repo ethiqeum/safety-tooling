@@ -24,6 +24,15 @@ ANTHROPIC_MODELS = {
     "claude-3-haiku-20240307",
     "research-claude-cabernet",
     "claude-3-7-sonnet-20250219",
+    # Claude 4.x ids (used by the false-facts pipelines; needed so the batch API
+    # recognizes them — the streaming InferenceAPI already routes any "claude*").
+    "claude-sonnet-4-20250514",
+    "claude-sonnet-4-5-20250929",
+    "claude-sonnet-4-6",
+    "claude-sonnet-5",
+    "claude-opus-4-20250514",
+    "claude-opus-4-8",
+    "claude-haiku-4-5-20251001",
 }
 VISION_MODELS = {
     "claude-3-5-sonnet-20241022",

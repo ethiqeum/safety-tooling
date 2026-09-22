@@ -32,6 +32,10 @@ ANTHROPIC_MODELS = {
     "claude-sonnet-5",
     "claude-opus-4-20250514",
     "claude-opus-4-8",
+    "claude-opus-5",
+    "claude-opus-5-5",
+    "claude-fable-5",
+    "claude-fable-5-1",
     "claude-haiku-4-5-20251001",
 }
 VISION_MODELS = {
@@ -154,30 +158,20 @@ class AnthropicChatModel(InferenceAPIModel):
                 raise RuntimeError(f"Failed to get a response from the API after {max_attempts} attempts.")
 
         else:
-            is_reasoning = response.content[0].type == "thinking"
-            assert (
-                is_reasoning or len(response.content) == 1
-            ), "Anthropic reasoning models don't support multiple completions"
-
-            if is_reasoning:
-                response = LLMResponse(
-                    model_id=model_id,
-                    completion=response.content[1].text,
-                    stop_reason=response.stop_reason,
-                    duration=duration,
-                    api_duration=api_duration,
-                    cost=0,
-                    reasoning_content=response.content[0].thinking,
-                )
-            else:
-                response = LLMResponse(
-                    model_id=model_id,
-                    completion=response.content[0].text,
-                    stop_reason=response.stop_reason,
-                    duration=duration,
-                    api_duration=api_duration,
-                    cost=0,
-                )
+            # Select blocks by type, not position: thinking-always-on models (Opus 5.5, Fable) return
+            # [thinking, text], and [thinking]-only / [] when max_tokens is exhausted mid-thought.
+            text_blocks = [b for b in response.content if getattr(b, "type", None) == "text"]
+            thinking_blocks = [b for b in response.content if getattr(b, "type", None) == "thinking"]
+            assert len(text_blocks) <= 1, "Anthropic reasoning models don't support multiple completions"
+            response = LLMResponse(
+                model_id=model_id,
+                completion=text_blocks[0].text if text_blocks else "",
+                stop_reason=response.stop_reason,
+                duration=duration,
+                api_duration=api_duration,
+                cost=0,
+                reasoning_content=thinking_blocks[0].thinking if thinking_blocks else None,
+            )
 
         responses = [response]
 
@@ -307,8 +301,8 @@ class AnthropicModelBatch:
         for result in results:
             if result.result.type == "succeeded":
                 content = result.result.message.content
-                # Extract text from content array
-                text = content[0].text if content else ""
+                # First text block (a thinking block may precede it on thinking-always-on models)
+                text = next((b.text for b in content if getattr(b, "type", None) == "text"), "")
                 assert result.custom_id in set_custom_ids
                 responses_dict[result.custom_id] = LLMResponse(
                     model_id=model_id,
